@@ -1,9 +1,9 @@
 services:
   - type: web
-    name: superconnector-v2
+    name: superconnector-v5
     runtime: node
     buildCommand: npm install
-    startCommand: node server-hotfix.js
+    startCommand: node server-v5.js
     envVars:
       - key: NODE_ENV
         value: production
