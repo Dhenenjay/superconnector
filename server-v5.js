@@ -346,11 +346,10 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     // Send response with proper UTF-8 encoding
     res.set('Content-Type', 'text/xml; charset=utf-8');
-    const xmlResponse = `<?xml version="1.0" encoding="UTF-8"?>
+    res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Message>${responseMessage}</Message>
-</Response>`;
-    res.send(Buffer.from(xmlResponse, 'utf8'));
+</Response>`);
     
     console.log('âœ… Response sent:', responseMessage);
 
