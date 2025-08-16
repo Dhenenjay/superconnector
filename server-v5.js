@@ -233,7 +233,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       
     } else if (!profile.email && !emailMatch) {
       // Need email
-      responseMessage = `Hey ${profile.name || userName}! 👋\n\nTo help you build meaningful connections, I'll need your email address. This helps me personalize your networking journey.\n\nWhat's your best email?`;
+      responseMessage = `Hey ${profile.name || userName}! 👋\n\nI'm Eli, your AI Superconnector. To unlock warm introductions to my network of founders and VCs, I'll need your email.\n\nWhat's your preferred professional email? 📧`;
       
     } else if (emailMatch && (!profile.email || profile.email !== emailMatch[1])) {
       // Save/update email
@@ -245,7 +245,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         
         if (!updateError) {
           profile.email = emailMatch[1];
-          responseMessage = `Perfect! I've saved your email (${emailMatch[1]}) 🎯\n\nNow, what kind of connections would be most valuable for your goals?`;
+          responseMessage = `Perfect! Email saved (${emailMatch[1]}) 🎯\n\nNow let's get specific - are you looking for investors, potential clients, co-founders, advisors, or strategic partners? What's your #1 priority?`;
         } else {
           responseMessage = `Thanks for sharing your email! What kind of connections are you looking for?`;
         }
@@ -305,8 +305,8 @@ app.post('/webhook/whatsapp', async (req, res) => {
       // Greeting
       const hasHistory = conversationHistory.length > 5;
       responseMessage = hasHistory 
-        ? `Welcome back ${profile.name || userName}! 👋\n\nGreat to continue our conversation. What's on your mind today?`
-        : `Hey ${profile.name || userName}! 👋\n\nI'm Eli, your AI networking assistant. I help professionals build meaningful connections.\n\nHow can I help you expand your network today?`;
+        ? `Welcome back ${profile.name || userName}! 👋\n\nGreat to continue our journey together. Which high-value connections would accelerate your goals right now?`
+        : `Hey ${profile.name || userName}! 👋\n\nI'm Eli, your AI Superconnector with access to 50,000+ founders, VCs, and executives. I specialize in warm introductions that actually convert.\n\nLet's start with the basics: What's your current role and what kind of connections would be game-changing for you? 🚀`;
         
     } else {
       // Regular conversation - use AI with context
@@ -320,11 +320,51 @@ app.post('/webhook/whatsapp', async (req, res) => {
             content: msg.content
           }));
         
-        const systemPrompt = `You are Eli, an AI networking assistant helping ${profile.name || userName} build professional connections. 
+        const systemPrompt = `You are Eli, an AI Superconnector specializing in warm introductions, helping ${profile.name || userName} expand their professional network through strategic connections.
         ${profile.email ? `Their email is ${profile.email}.` : 'They haven\'t shared their email yet.'}
         ${profile.last_call_summary ? `Previous call summary: ${profile.last_call_summary}` : ''}
-        Keep responses concise (2-3 sentences), helpful, and focused on networking/connections.
-        Use emojis sparingly but effectively. Be professional yet friendly.`;
+        
+        Your mission is to gather COMPREHENSIVE information about users to enable powerful warm introductions. You MUST collect:
+        
+        PROFESSIONAL PROFILE:
+        - Current role, title, and company (size, stage, industry)
+        - Years of experience and career progression
+        - Key achievements, deals closed, or projects led
+        - Domain expertise and technical skills
+        - Previous companies and notable positions
+        - Side projects or entrepreneurial ventures
+        
+        ACADEMIC BACKGROUND:
+        - Universities/colleges attended (degree, major, graduation year)
+        - Notable academic achievements or research
+        - Relevant certifications or specialized training
+        - Alumni networks they're part of
+        
+        CONNECTION REQUIREMENTS:
+        - WHO they want to connect with (specific names, roles, or companies)
+        - WHY they need these connections (fundraising, hiring, partnerships, sales, mentorship)
+        - WHAT they can offer in return (expertise, opportunities, investments)
+        - Deal size or investment range if applicable
+        - Geographic preferences or constraints
+        - Timeline and urgency of connections needed
+        
+        PERSONALITY & CULTURE FIT:
+        - Core values and what drives them
+        - Communication style (formal/casual, quick/detailed)
+        - Interests outside work (hobbies, causes they care about)
+        - What energizes them professionally
+        - Their superpower or unique perspective
+        
+        NETWORK VALUE:
+        - Their existing valuable connections
+        - Communities or groups they're active in
+        - Speaking engagements or thought leadership
+        - Advisory or board positions
+        
+        Always introduce yourself as a Superconnector, not an assistant. Reference your network (YC founders, VCs, executives at FAANG, unicorn founders) when relevant.
+        Ask 1-2 targeted follow-up questions per message to gather missing information.
+        Keep responses concise (2-3 sentences) but impactful.
+        Use strategic emojis to maintain energy while staying professional.`;
         
         const completion = await openai.chat.completions.create({
           model: 'gpt-3.5-turbo',
@@ -697,7 +737,7 @@ app.listen(PORT, () => {
   
   console.log(`
 ╔══════════════════════════════════════════════════════════════╗
-║           SUPERCONNECTOR V5 - PRODUCTION READY               ║
+║         ELI - AI SUPERCONNECTOR V5 - PRODUCTION              ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  ✅ Server running on port ${PORT}                                 ║
 ║  ✅ WhatsApp webhook: /webhook/whatsapp                       ║
