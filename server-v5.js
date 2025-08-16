@@ -100,10 +100,10 @@ app.get('/webhook/whatsapp', (req, res) => {
   
   if (mode && token) {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-      console.log('✅ Webhook verified');
+      console.log('âœ… Webhook verified');
       return res.status(200).send(challenge);
     }
-    console.log('❌ Webhook verification failed');
+    console.log('âŒ Webhook verification failed');
     return res.sendStatus(403);
   }
   
@@ -112,7 +112,7 @@ app.get('/webhook/whatsapp', (req, res) => {
 
 // WhatsApp webhook - main handler
 app.post('/webhook/whatsapp', async (req, res) => {
-  console.log('📱 WhatsApp message received:', JSON.stringify(req.body, null, 2));
+  console.log('ðŸ“± WhatsApp message received:', JSON.stringify(req.body, null, 2));
   
   try {
     const { From, Body, ProfileName } = req.body;
@@ -125,7 +125,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     const message = Body.trim();
     const userName = ProfileName || 'User';
     
-    console.log(`📨 From: ${userName} (${phoneNumber}): ${message}`);
+    console.log(`ðŸ“¨ From: ${userName} (${phoneNumber}): ${message}`);
     
     // Get or create profile
     let profile = null;
@@ -139,7 +139,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     if (existingProfile) {
       profile = existingProfile;
-      console.log('✅ Found existing profile:', profile.id);
+      console.log('âœ… Found existing profile:', profile.id);
     } else {
       // Create new profile
       const { data: newProfile, error: createError } = await supabase
@@ -153,12 +153,12 @@ app.post('/webhook/whatsapp', async (req, res) => {
         .single();
       
       if (createError) {
-        console.error('❌ Error creating profile:', createError);
+        console.error('âŒ Error creating profile:', createError);
         // Continue without profile
         profile = { phone: phoneNumber, name: userName };
       } else {
         profile = newProfile;
-        console.log('✅ Created new profile:', profile.id);
+        console.log('âœ… Created new profile:', profile.id);
       }
     }
     
@@ -212,17 +212,17 @@ app.post('/webhook/whatsapp', async (req, res) => {
           : `${Math.floor(minutesAgo/60)} hour${Math.floor(minutesAgo/60) !== 1 ? 's' : ''} ago`;
         
         responseMessage = lastCall.summary 
-          ? `Yes! We spoke ${timeText}. ${lastCall.summary}\n\nWhat would you like to explore next? 🚀`
+          ? `Yes! We spoke ${timeText}. ${lastCall.summary}\n\nWhat would you like to explore next? ðŸš€`
           : `We had a call ${timeText}. How can I help you build on that conversation?`;
       } else if (profile.last_call_summary) {
         responseMessage = `From our last conversation: ${profile.last_call_summary}\n\nHow can I help you today?`;
       } else {
-        responseMessage = "I don't see any recent calls in our records. Would you like to schedule one? Just say 'call me' 📞";
+        responseMessage = "I don't see any recent calls in our records. Would you like to schedule one? Just say 'call me' ðŸ“ž";
       }
       
     } else if (!profile.email && !emailMatch) {
       // Need email
-      responseMessage = `Hey ${profile.name || userName}! 👋\n\nTo help you build meaningful connections, I'll need your email address. This helps me personalize your networking journey.\n\nWhat's your best email?`;
+      responseMessage = `Hey ${profile.name || userName}! ðŸ‘‹\n\nTo help you build meaningful connections, I'll need your email address. This helps me personalize your networking journey.\n\nWhat's your best email?`;
       
     } else if (emailMatch && (!profile.email || profile.email !== emailMatch[1])) {
       // Save/update email
@@ -234,7 +234,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         
         if (!updateError) {
           profile.email = emailMatch[1];
-          responseMessage = `Perfect! I've saved your email (${emailMatch[1]}) 🎯\n\nNow, what kind of connections would be most valuable for your goals?`;
+          responseMessage = `Perfect! I've saved your email (${emailMatch[1]}) ðŸŽ¯\n\nNow, what kind of connections would be most valuable for your goals?`;
         } else {
           responseMessage = `Thanks for sharing your email! What kind of connections are you looking for?`;
         }
@@ -244,7 +244,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
       
     } else if (wantsCall) {
       // Initiate VAPI call
-      console.log('📞 Initiating VAPI call for:', phoneNumber);
+      console.log('ðŸ“ž Initiating VAPI call for:', phoneNumber);
       
       try {
         const vapiPayload = {
@@ -256,20 +256,20 @@ app.post('/webhook/whatsapp', async (req, res) => {
           phoneNumberId: process.env.VAPI_PHONE_NUMBER || '8b427031-9c9e-44d9-afda-6a6e2a23e3c3',
         };
         
-        console.log('📞 VAPI Request:', JSON.stringify(vapiPayload, null, 2));
+        console.log('ðŸ“ž VAPI Request:', JSON.stringify(vapiPayload, null, 2));
         
         const vapiResponse = await axios.post(
           'https://api.vapi.ai/call/phone',
           vapiPayload,
           {
             headers: {
-              Authorization: `Bearer ${process.env.VAPI_API_KEY}`,
+              'x-vapi-secret': process.env.VAPI_API_KEY,
               'Content-Type': 'application/json',
             },
           }
         );
         
-        console.log('✅ VAPI Response:', vapiResponse.data);
+        console.log('âœ… VAPI Response:', vapiResponse.data);
         
         // Store call record
         if (profile.id && vapiResponse.data.id) {
@@ -284,18 +284,18 @@ app.post('/webhook/whatsapp', async (req, res) => {
             });
         }
         
-        responseMessage = "Perfect! 📞 I'm calling you now. Please answer when you see the call so we can discuss your networking needs in detail!";
+        responseMessage = "Perfect! ðŸ“ž I'm calling you now. Please answer when you see the call so we can discuss your networking needs in detail!";
       } catch (error) {
-        console.error('❌ Call error:', error.response?.data || error.message);
-        responseMessage = "I'll arrange a call for you shortly! Meanwhile, what specific connections are you looking to make? 🤝";
+        console.error('âŒ Call error:', error.response?.data || error.message);
+        responseMessage = "I'll arrange a call for you shortly! Meanwhile, what specific connections are you looking to make? ðŸ¤";
       }
       
     } else if (isGreeting) {
       // Greeting
       const hasHistory = conversationHistory.length > 5;
       responseMessage = hasHistory 
-        ? `Welcome back ${profile.name || userName}! 👋\n\nGreat to continue our conversation. What's on your mind today?`
-        : `Hey ${profile.name || userName}! 👋\n\nI'm Eli, your AI networking assistant. I help professionals build meaningful connections.\n\nHow can I help you expand your network today?`;
+        ? `Welcome back ${profile.name || userName}! ðŸ‘‹\n\nGreat to continue our conversation. What's on your mind today?`
+        : `Hey ${profile.name || userName}! ðŸ‘‹\n\nI'm Eli, your AI networking assistant. I help professionals build meaningful connections.\n\nHow can I help you expand your network today?`;
         
     } else {
       // Regular conversation - use AI with context
@@ -328,8 +328,8 @@ app.post('/webhook/whatsapp', async (req, res) => {
         
         responseMessage = completion.choices[0].message.content;
       } catch (err) {
-        console.error('❌ AI error:', err);
-        responseMessage = `I understand you're interested in building connections. What type of professionals or industries are you looking to connect with? 🤝`;
+        console.error('âŒ AI error:', err);
+        responseMessage = `I understand you're interested in building connections. What type of professionals or industries are you looking to connect with? ðŸ¤`;
       }
     }
     
@@ -351,21 +351,21 @@ app.post('/webhook/whatsapp', async (req, res) => {
   <Message>${responseMessage}</Message>
 </Response>`);
     
-    console.log('✅ Response sent:', responseMessage);
+    console.log('âœ… Response sent:', responseMessage);
 
   } catch (error) {
-    console.error('❌ Error processing message:', error);
+    console.error('âŒ Error processing message:', error);
     res.set('Content-Type', 'text/xml; charset=utf-8');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Message>I'm having a moment! Let me get back to you shortly. Meanwhile, feel free to tell me what you're looking for! 🔄</Message>
+  <Message>I'm having a moment! Let me get back to you shortly. Meanwhile, feel free to tell me what you're looking for! ðŸ”„</Message>
 </Response>`);
   }
 });
 
 // VAPI webhook handler
 app.post('/webhook/vapi', async (req, res) => {
-  console.log('📞 VAPI webhook received:', JSON.stringify(req.body, null, 2));
+  console.log('ðŸ“ž VAPI webhook received:', JSON.stringify(req.body, null, 2));
   
   try {
     const { type, call } = req.body;
@@ -382,7 +382,7 @@ app.post('/webhook/vapi', async (req, res) => {
     
     // Handle different VAPI events
     if (type === 'call-started') {
-      console.log('📞 Call started:', call.id);
+      console.log('ðŸ“ž Call started:', call.id);
       
       // Update call status
       if (call.id) {
@@ -396,7 +396,7 @@ app.post('/webhook/vapi', async (req, res) => {
       }
       
     } else if (type === 'end-of-call-report' || type === 'call-ended') {
-      console.log('📞 Call ended:', call.id);
+      console.log('ðŸ“ž Call ended:', call.id);
       
       const duration = call.duration || 0;
       const summary = call.analysis?.summary || 
@@ -420,7 +420,7 @@ app.post('/webhook/vapi', async (req, res) => {
           .eq('vapi_call_id', call.id);
         
         if (updateCallError) {
-          console.error('❌ Error updating call:', updateCallError);
+          console.error('âŒ Error updating call:', updateCallError);
         }
       }
       
@@ -442,7 +442,7 @@ app.post('/webhook/vapi', async (req, res) => {
           .eq('id', profile.id);
         
         if (!updateProfileError) {
-          console.log('✅ Profile updated with call summary');
+          console.log('âœ… Profile updated with call summary');
         }
         
         // Store a message about the call completion
@@ -457,7 +457,7 @@ app.post('/webhook/vapi', async (req, res) => {
       }
       
     } else if (type === 'transcript') {
-      console.log('📝 Transcript update for call:', call.id);
+      console.log('ðŸ“ Transcript update for call:', call.id);
       
       // Update transcript in real-time
       if (call.id && call.transcript) {
@@ -471,7 +471,7 @@ app.post('/webhook/vapi', async (req, res) => {
     res.json({ success: true, processed: type });
     
   } catch (error) {
-    console.error('❌ VAPI webhook error:', error);
+    console.error('âŒ VAPI webhook error:', error);
     res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
@@ -502,28 +502,28 @@ app.delete('/admin/clear-test-data', async (req, res) => {
 // Start server
 app.listen(PORT, () => {
   const dbUrl = process.env.SUPABASE_URL || 'Not configured';
-  const vapiConfigured = process.env.VAPI_API_KEY ? '✅' : '❌';
-  const openaiConfigured = process.env.OPENAI_API_KEY ? '✅' : '❌';
+  const vapiConfigured = process.env.VAPI_API_KEY ? 'âœ…' : 'âŒ';
+  const openaiConfigured = process.env.OPENAI_API_KEY ? 'âœ…' : 'âŒ';
   
   console.log(`
-╔══════════════════════════════════════════════════════════════╗
-║           SUPERCONNECTOR V5 - PRODUCTION READY               ║
-╠══════════════════════════════════════════════════════════════╣
-║  ✅ Server running on port ${PORT}                                 ║
-║  ✅ WhatsApp webhook: /webhook/whatsapp                       ║
-║  ✅ VAPI webhook: /webhook/vapi                               ║
-║  ✅ Admin endpoints: /admin/*                                 ║
-║  ✅ Health check: /health                                     ║
-╠══════════════════════════════════════════════════════════════╣
-║  Database: ${dbUrl.substring(0, 30)}...                       ║
-║  VAPI: ${vapiConfigured}  OpenAI: ${openaiConfigured}                                          ║
-╠══════════════════════════════════════════════════════════════╣
-║  Features:                                                    ║
-║  • Real-time sync between WhatsApp & VAPI                    ║
-║  • Persistent PostgreSQL storage via Supabase                ║
-║  • Full conversation history & context                       ║
-║  • Emoji support enabled                                     ║
-║  • Auto-scaling ready                                        ║
-╚══════════════════════════════════════════════════════════════╝
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+â•‘           SUPERCONNECTOR V5 - PRODUCTION READY               â•‘
+â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
+â•‘  âœ… Server running on port ${PORT}                                 â•‘
+â•‘  âœ… WhatsApp webhook: /webhook/whatsapp                       â•‘
+â•‘  âœ… VAPI webhook: /webhook/vapi                               â•‘
+â•‘  âœ… Admin endpoints: /admin/*                                 â•‘
+â•‘  âœ… Health check: /health                                     â•‘
+â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
+â•‘  Database: ${dbUrl.substring(0, 30)}...                       â•‘
+â•‘  VAPI: ${vapiConfigured}  OpenAI: ${openaiConfigured}                                          â•‘
+â• â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•£
+â•‘  Features:                                                    â•‘
+â•‘  â€¢ Real-time sync between WhatsApp & VAPI                    â•‘
+â•‘  â€¢ Persistent PostgreSQL storage via Supabase                â•‘
+â•‘  â€¢ Full conversation history & context                       â•‘
+â•‘  â€¢ Emoji support enabled                                     â•‘
+â•‘  â€¢ Auto-scaling ready                                        â•‘
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   `);
 });
