@@ -263,7 +263,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
           vapiPayload,
           {
             headers: {
-              'x-vapi-secret': process.env.VAPI_API_KEY,
+              'Authorization': `Bearer ${process.env.VAPI_PRIVATE || process.env.VAPI_API_KEY}`,
               'Content-Type': 'application/json',
             },
           }
