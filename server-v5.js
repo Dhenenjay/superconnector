@@ -173,7 +173,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         });
     }
     
-    // Get conversation history
+    // Get conversation history (including VAPI call messages)
     let conversationHistory = [];
     if (profile.id) {
       const { data: messages } = await supabase
@@ -181,7 +181,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         .select('*')
         .eq('profile_id', profile.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);  // Increased to include more context from calls
       
       conversationHistory = messages || [];
     }
@@ -404,6 +404,7 @@ app.post('/webhook/vapi', async (req, res) => {
                      `Call completed (${Math.round(duration/60)} minutes)`;
       const transcript = call.transcript || '';
       const recordingUrl = call.recordingUrl || '';
+      const messages = call.messages || [];
       
       // Update call record
       if (call.id) {
@@ -433,16 +434,50 @@ app.post('/webhook/vapi', async (req, res) => {
         .single();
       
       if (profile) {
+        // Parse and store individual messages from VAPI call
+        if (messages && messages.length > 0) {
+          console.log('ðŸ“ Storing VAPI conversation messages...');
+          
+          for (const msg of messages) {
+            if (msg.role && msg.message) {
+              // Store each conversation turn as a message
+              await supabase
+                .from('messages')
+                .insert({
+                  profile_id: profile.id,
+                  direction: msg.role === 'user' ? 'inbound' : 'outbound',
+                  content: msg.message,
+                  message_type: 'vapi_call',
+                  metadata: {
+                    call_id: call.id,
+                    timestamp: msg.time,
+                    duration: msg.duration
+                  }
+                });
+            }
+          }
+          console.log(`âœ… Stored ${messages.length} VAPI messages`);
+        }
+        
+        // Build a detailed summary from the actual conversation
+        let detailedSummary = summary;
+        if (messages && messages.length > 0) {
+          const userMessages = messages.filter(m => m.role === 'user').map(m => m.message).join(' ');
+          if (userMessages) {
+            detailedSummary = `${summary}\n\nKey points discussed: ${userMessages.substring(0, 500)}`;
+          }
+        }
+        
         const { error: updateProfileError } = await supabase
           .from('profiles')
           .update({
-            last_call_summary: summary,
+            last_call_summary: detailedSummary,
             last_call_at: new Date().toISOString()
           })
           .eq('id', profile.id);
         
         if (!updateProfileError) {
-          console.log('âœ… Profile updated with call summary');
+          console.log('âœ… Profile updated with detailed call summary');
         }
         
         // Store a message about the call completion
@@ -451,7 +486,7 @@ app.post('/webhook/vapi', async (req, res) => {
           .insert({
             profile_id: profile.id,
             direction: 'outbound',
-            content: `Call completed: ${summary}`,
+            content: `Call completed: ${detailedSummary}`,
             message_type: 'system'
           });
       }
