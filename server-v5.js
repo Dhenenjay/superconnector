@@ -381,18 +381,32 @@ app.post('/webhook/vapi', async (req, res) => {
     }
     
     // Handle different VAPI events
-    if (type === 'call-started') {
+    if (type === 'status-update' && call.status === 'in-progress') {
       console.log('ðŸ“ž Call started:', call.id);
       
-      // Update call status
-      if (call.id) {
-        await supabase
+      // Get profile
+      const cleanPhone = phoneNumber.replace('whatsapp:', '').trim();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', cleanPhone)
+        .single();
+      
+      if (profile && call.id) {
+        // Create or update call record
+        const { error } = await supabase
           .from('calls')
-          .update({ 
+          .upsert({
+            vapi_call_id: call.id,
+            profile_id: profile.id,
+            to_number: phoneNumber,
             status: 'in-progress',
             started_at: new Date().toISOString()
-          })
-          .eq('vapi_call_id', call.id);
+          });
+        
+        if (!error) {
+          console.log('âœ… Call record created');
+        }
       }
       
     } else if (type === 'end-of-call-report' || type === 'call-ended') {
