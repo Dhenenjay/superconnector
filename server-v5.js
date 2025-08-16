@@ -379,20 +379,26 @@ app.post('/webhook/vapi', async (req, res) => {
   console.log('📞 VAPI webhook received:', JSON.stringify(req.body, null, 2));
   
   try {
-    const { type, call } = req.body;
+    // VAPI sends different formats, handle both
+    const { type, message, call } = req.body;
+    const actualCall = call || message?.call || req.body;
+    const eventType = type || message?.type;
     
-    if (!call) {
+    console.log('📞 Event type:', eventType);
+    
+    if (!actualCall && eventType !== 'function-call') {
       return res.json({ success: true, message: 'No call data' });
     }
     
-    const phoneNumber = call.customer?.number || call.phoneNumber;
+    const phoneNumber = actualCall?.customer?.number || actualCall?.phoneNumber || message?.customer?.number;
     
-    if (!phoneNumber) {
+    if (!phoneNumber && eventType !== 'function-call') {
+      console.log('⚠️ No phone number found in:', req.body);
       return res.json({ success: true, message: 'No phone number' });
     }
     
     // Handle different VAPI events
-    if (type === 'function-call') {
+    if (eventType === 'function-call' || type === 'function-call') {
       console.log('🔧 VAPI requesting function:', req.body.functionCall?.name);
       console.log('📞 Phone number from VAPI:', phoneNumber);
       
@@ -461,8 +467,8 @@ app.post('/webhook/vapi', async (req, res) => {
       
       return res.json({ message: 'No profile found' });
       
-    } else if (type === 'status-update' && call.status === 'in-progress') {
-      console.log('📞 Call started:', call.id);
+    } else if ((eventType === 'status-update' || type === 'status-update') && (actualCall?.status === 'in-progress' || message?.status === 'in-progress')) {
+      console.log('📞 Call started:', actualCall?.id || message?.call?.id);
       
       // Get profile
       const cleanPhone = phoneNumber.replace('whatsapp:', '').trim();
@@ -472,12 +478,13 @@ app.post('/webhook/vapi', async (req, res) => {
         .eq('phone', cleanPhone)
         .single();
       
-      if (profile && call.id) {
+      if (profile && (actualCall?.id || message?.call?.id)) {
+        const callId = actualCall?.id || message?.call?.id;
         // Create or update call record
         const { error } = await supabase
           .from('calls')
           .upsert({
-            vapi_call_id: call.id,
+            vapi_call_id: callId,
             profile_id: profile.id,
             to_number: phoneNumber,
             status: 'in-progress',
@@ -489,20 +496,36 @@ app.post('/webhook/vapi', async (req, res) => {
         }
       }
       
-    } else if (type === 'end-of-call-report' || type === 'call-ended') {
-      console.log('📞 Call ended:', call.id);
+    } else if (eventType === 'end-of-call-report' || type === 'end-of-call-report' || eventType === 'call-ended' || type === 'call-ended') {
+      console.log('📞 Call ended processing...');
       
-      const duration = call.duration || 0;
-      const summary = call.analysis?.summary || 
-                     call.summary || 
+      // Extract data from different possible locations
+      const callData = actualCall || message || req.body;
+      const callId = callData.call?.id || callData.id || message?.call?.id;
+      
+      console.log('📞 Call ID:', callId);
+      
+      const duration = callData.durationSeconds || callData.duration || message?.durationSeconds || 0;
+      const analysis = callData.analysis || message?.analysis;
+      const artifact = callData.artifact || message?.artifact;
+      
+      // Extract summary from various possible locations
+      const summary = analysis?.summary || 
+                     callData.summary || 
+                     message?.summary ||
                      `Call completed (${Math.round(duration/60)} minutes)`;
-      const transcript = call.transcript || '';
-      const recordingUrl = call.recordingUrl || '';
-      const messages = call.messages || [];
+      
+      const transcript = callData.transcript || artifact?.transcript || message?.transcript || '';
+      const recordingUrl = callData.recordingUrl || callData.recording?.combinedUrl || message?.recordingUrl || '';
+      const messages = artifact?.messages || callData.messages || message?.artifact?.messages || [];
+      
+      console.log('📝 Summary:', summary?.substring(0, 100) + '...');
+      console.log('📝 Messages count:', messages.length);
       
       // Update call record
-      if (call.id) {
-        const { error: updateCallError } = await supabase
+      if (callId) {
+        console.log('🔄 Updating call record:', callId);
+        const { error: updateCallError, data: updatedCall } = await supabase
           .from('calls')
           .update({
             status: 'completed',
@@ -512,10 +535,13 @@ app.post('/webhook/vapi', async (req, res) => {
             recording_url: recordingUrl,
             ended_at: new Date().toISOString()
           })
-          .eq('vapi_call_id', call.id);
+          .eq('vapi_call_id', callId)
+          .select();
         
         if (updateCallError) {
           console.error('❌ Error updating call:', updateCallError);
+        } else {
+          console.log('✅ Call record updated:', updatedCall);
         }
       }
       
