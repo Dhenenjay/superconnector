@@ -569,7 +569,7 @@ app.post('/webhook/vapi', async (req, res) => {
                   content: msg.message,
                   message_type: 'vapi_call',
                   metadata: {
-                    call_id: call.id,
+                    call_id: callId,
                     timestamp: msg.time,
                     duration: msg.duration
                   }
