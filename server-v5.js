@@ -522,26 +522,60 @@ app.post('/webhook/vapi', async (req, res) => {
       console.log('📝 Summary:', summary?.substring(0, 100) + '...');
       console.log('📝 Messages count:', messages.length);
       
-      // Update call record
+      // Update or create call record
       if (callId) {
-        console.log('🔄 Updating call record:', callId);
-        const { error: updateCallError, data: updatedCall } = await supabase
-          .from('calls')
-          .update({
-            status: 'completed',
-            duration,
-            transcript,
-            summary,
-            recording_url: recordingUrl,
-            ended_at: new Date().toISOString()
-          })
-          .eq('vapi_call_id', callId)
-          .select();
+        // First, get profile to ensure we have the profile_id
+        const cleanPhone = phoneNumber.replace('whatsapp:', '').trim();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', cleanPhone)
+          .single();
         
-        if (updateCallError) {
-          console.error('❌ Error updating call:', updateCallError);
-        } else {
-          console.log('✅ Call record updated:', updatedCall);
+        if (profile) {
+          console.log('🔄 Updating/creating call record:', callId);
+          
+          // Try to update first
+          const { error: updateCallError, data: updatedCall } = await supabase
+            .from('calls')
+            .update({
+              status: 'completed',
+              duration,
+              transcript,
+              summary,
+              recording_url: recordingUrl,
+              ended_at: new Date().toISOString()
+            })
+            .eq('vapi_call_id', callId)
+            .select();
+          
+          if (updateCallError || !updatedCall || updatedCall.length === 0) {
+            // If update failed or no rows updated, create a new record
+            console.log('📝 Creating new call record...');
+            const { error: insertError, data: insertedCall } = await supabase
+              .from('calls')
+              .insert({
+                vapi_call_id: callId,
+                profile_id: profile.id,
+                to_number: phoneNumber,
+                status: 'completed',
+                duration,
+                transcript,
+                summary,
+                recording_url: recordingUrl,
+                started_at: new Date().toISOString(),
+                ended_at: new Date().toISOString()
+              })
+              .select();
+            
+            if (insertError) {
+              console.error('❌ Error creating call:', insertError);
+            } else {
+              console.log('✅ Call record created:', insertedCall);
+            }
+          } else {
+            console.log('✅ Call record updated:', updatedCall);
+          }
         }
       }
       
