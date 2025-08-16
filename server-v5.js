@@ -173,7 +173,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         });
     }
     
-    // Get conversation history
+    // Get conversation history (including VAPI call messages)
     let conversationHistory = [];
     if (profile.id) {
       const { data: messages } = await supabase
@@ -181,7 +181,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         .select('*')
         .eq('profile_id', profile.id)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(20);  // Increased to include more context from calls
       
       conversationHistory = messages || [];
     }
@@ -196,6 +196,17 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     // Handle different scenarios
     if (askingAboutCall && profile.id) {
+      // Reload profile to get latest call summary
+      const { data: updatedProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .single();
+      
+      if (updatedProfile) {
+        profile = updatedProfile;
+      }
+      
       // Check call history
       const { data: recentCalls } = await supabase
         .from('calls')
@@ -263,7 +274,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
           vapiPayload,
           {
             headers: {
-              Authorization: `Bearer ${process.env.VAPI_API_KEY}`,
+              'Authorization': `Bearer ${process.env.VAPI_PRIVATE || process.env.VAPI_API_KEY}`,
               'Content-Type': 'application/json',
             },
           }
@@ -344,7 +355,7 @@ app.post('/webhook/whatsapp', async (req, res) => {
         });
     }
     
-    // Send response
+    // Send response with proper UTF-8 encoding
     res.set('Content-Type', 'text/xml; charset=utf-8');
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -381,18 +392,101 @@ app.post('/webhook/vapi', async (req, res) => {
     }
     
     // Handle different VAPI events
-    if (type === 'call-started') {
+    if (type === 'function-call') {
+      console.log('🔧 VAPI requesting function:', req.body.functionCall?.name);
+      console.log('📞 Phone number from VAPI:', phoneNumber);
+      
+      // Get user context for VAPI
+      // Keep the phone number as-is since it comes with + from VAPI
+      const cleanPhone = phoneNumber.replace('whatsapp:', '').trim();
+      
+      console.log('🔍 Searching for profile with phone:', cleanPhone);
+      
+      // Look up profile by phone number
+      let profile = null;
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .single();
+      
+      if (!profileError && profileData) {
+        profile = profileData;
+        console.log('✅ Found profile for:', profile.name);
+      } else if (profileError) {
+        console.log('❌ Profile lookup error:', profileError.message);
+        console.log('🔍 Trying without + prefix...');
+        // Try without the + prefix
+        const altPhone = cleanPhone.replace(/^\+/, '');
+        const { data: altProfile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('phone', altPhone)
+          .single();
+        
+        if (altProfile) {
+          profile = altProfile;
+          console.log('✅ Found profile with alt phone format');
+        }
+      }
+      
+      if (profile) {
+        // Get recent messages
+        const { data: messages } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('profile_id', profile.id)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        // Build conversation history
+        let conversationHistory = 'Previous conversations:\n';
+        if (profile.last_call_summary) {
+          conversationHistory += `Last call: ${profile.last_call_summary}\n`;
+        }
+        if (messages && messages.length > 0) {
+          messages.reverse().forEach(msg => {
+            conversationHistory += `${msg.direction === 'inbound' ? 'User' : 'Eli'}: ${msg.content}\n`;
+          });
+        }
+        
+        // Return context to VAPI
+        return res.json({
+          conversationHistory,
+          userName: profile.name,
+          userEmail: profile.email,
+          userProfile: `${profile.name} - ${profile.phone} - ${profile.email || 'No email'}. ${profile.last_call_summary || ''}`
+        });
+      }
+      
+      return res.json({ message: 'No profile found' });
+      
+    } else if (type === 'status-update' && call.status === 'in-progress') {
       console.log('📞 Call started:', call.id);
       
-      // Update call status
-      if (call.id) {
-        await supabase
+      // Get profile
+      const cleanPhone = phoneNumber.replace('whatsapp:', '').trim();
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('phone', cleanPhone)
+        .single();
+      
+      if (profile && call.id) {
+        // Create or update call record
+        const { error } = await supabase
           .from('calls')
-          .update({ 
+          .upsert({
+            vapi_call_id: call.id,
+            profile_id: profile.id,
+            to_number: phoneNumber,
             status: 'in-progress',
             started_at: new Date().toISOString()
-          })
-          .eq('vapi_call_id', call.id);
+          });
+        
+        if (!error) {
+          console.log('✅ Call record created');
+        }
       }
       
     } else if (type === 'end-of-call-report' || type === 'call-ended') {
@@ -404,6 +498,7 @@ app.post('/webhook/vapi', async (req, res) => {
                      `Call completed (${Math.round(duration/60)} minutes)`;
       const transcript = call.transcript || '';
       const recordingUrl = call.recordingUrl || '';
+      const messages = call.messages || [];
       
       // Update call record
       if (call.id) {
@@ -433,16 +528,50 @@ app.post('/webhook/vapi', async (req, res) => {
         .single();
       
       if (profile) {
+        // Parse and store individual messages from VAPI call
+        if (messages && messages.length > 0) {
+          console.log('📝 Storing VAPI conversation messages...');
+          
+          for (const msg of messages) {
+            if (msg.role && msg.message) {
+              // Store each conversation turn as a message
+              await supabase
+                .from('messages')
+                .insert({
+                  profile_id: profile.id,
+                  direction: msg.role === 'user' ? 'inbound' : 'outbound',
+                  content: msg.message,
+                  message_type: 'vapi_call',
+                  metadata: {
+                    call_id: call.id,
+                    timestamp: msg.time,
+                    duration: msg.duration
+                  }
+                });
+            }
+          }
+          console.log(`✅ Stored ${messages.length} VAPI messages`);
+        }
+        
+        // Build a detailed summary from the actual conversation
+        let detailedSummary = summary;
+        if (messages && messages.length > 0) {
+          const userMessages = messages.filter(m => m.role === 'user').map(m => m.message).join(' ');
+          if (userMessages) {
+            detailedSummary = `${summary}\n\nKey points discussed: ${userMessages.substring(0, 500)}`;
+          }
+        }
+        
         const { error: updateProfileError } = await supabase
           .from('profiles')
           .update({
-            last_call_summary: summary,
+            last_call_summary: detailedSummary,
             last_call_at: new Date().toISOString()
           })
           .eq('id', profile.id);
         
         if (!updateProfileError) {
-          console.log('✅ Profile updated with call summary');
+          console.log('✅ Profile updated with detailed call summary');
         }
         
         // Store a message about the call completion
@@ -451,7 +580,7 @@ app.post('/webhook/vapi', async (req, res) => {
           .insert({
             profile_id: profile.id,
             direction: 'outbound',
-            content: `Call completed: ${summary}`,
+            content: `Call completed: ${detailedSummary}`,
             message_type: 'system'
           });
       }
