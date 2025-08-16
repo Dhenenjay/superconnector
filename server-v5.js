@@ -499,25 +499,26 @@ app.post('/webhook/vapi', async (req, res) => {
     } else if (eventType === 'end-of-call-report' || type === 'end-of-call-report' || eventType === 'call-ended' || type === 'call-ended') {
       console.log('📞 Call ended processing...');
       
-      // Extract data from different possible locations
-      const callData = actualCall || message || req.body;
-      const callId = callData.call?.id || callData.id || message?.call?.id;
+      // Extract call ID from nested or root level
+      const callId = call?.id || actualCall?.id || message?.call?.id || req.body.call?.id;
       
       console.log('📞 Call ID:', callId);
       
-      const duration = callData.durationSeconds || callData.duration || message?.durationSeconds || 0;
-      const analysis = callData.analysis || message?.analysis;
-      const artifact = callData.artifact || message?.artifact;
+      // Extract data from root level (req.body) first, then fallback to nested locations
+      const duration = req.body.durationSeconds || req.body.duration || message?.durationSeconds || actualCall?.durationSeconds || 0;
+      const analysis = req.body.analysis || message?.analysis || actualCall?.analysis;
+      const artifact = req.body.artifact || message?.artifact || actualCall?.artifact;
       
       // Extract summary from various possible locations
       const summary = analysis?.summary || 
-                     callData.summary || 
+                     req.body.summary || 
                      message?.summary ||
+                     actualCall?.summary ||
                      `Call completed (${Math.round(duration/60)} minutes)`;
       
-      const transcript = callData.transcript || artifact?.transcript || message?.transcript || '';
-      const recordingUrl = callData.recordingUrl || callData.recording?.combinedUrl || message?.recordingUrl || '';
-      const messages = artifact?.messages || callData.messages || message?.artifact?.messages || [];
+      const transcript = req.body.transcript || artifact?.transcript || message?.transcript || actualCall?.transcript || '';
+      const recordingUrl = req.body.recordingUrl || req.body.recording?.combinedUrl || message?.recordingUrl || actualCall?.recordingUrl || '';
+      const messages = artifact?.messages || req.body.messages || message?.artifact?.messages || actualCall?.messages || [];
       
       console.log('📝 Summary:', summary?.substring(0, 100) + '...');
       console.log('📝 Messages count:', messages.length);
