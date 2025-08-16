@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import { config } from 'dotenv';
-import { ConvexHttpClient } from 'convex/browser';
 import axios from 'axios';
 import OpenAI from 'openai';
 
@@ -11,13 +10,13 @@ config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Initialize Convex client
-const convex = new ConvexHttpClient(process.env.CONVEX_URL || 'https://reminiscent-bulldog-339.convex.cloud');
-
 // Initialize OpenAI
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// In-memory profile storage (temporary)
+const profiles = new Map();
 
 // Middleware
 app.use(cors());
@@ -29,8 +28,8 @@ app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok',
     timestamp: new Date().toISOString(),
-    server: 'Superconnector V2',
-    version: '2.0.0',
+    server: 'Superconnector V2 HOTFIX',
+    version: '2.0.1',
     ready: true
   });
 });
@@ -80,34 +79,15 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     console.log(`From: ${userName} (${phoneNumber}): ${message}`);
     
-    // Import Convex API
-    const api = (await import('./convex/_generated/api.js')).api;
-    
-    // Get or create profile
-    let profile = null;
-    try {
-      // Try with the phone number as is
-      profile = await convex.query(api.whatsapp.getByPhone, { phone: phoneNumber });
-      
-      // If not found, try without the + sign
-      if (!profile && phoneNumber.startsWith('+')) {
-        profile = await convex.query(api.whatsapp.getByPhone, { phone: phoneNumber.substring(1) });
-      }
-      
-      // If still not found, create new profile
-      if (!profile) {
-        console.log(`Creating new profile for ${phoneNumber}`);
-        profile = await convex.mutation(api.whatsapp.createOrUpdate, {
-          phone: phoneNumber,
-          name: userName,
-          email: null
-        });
-        console.log('Profile created:', profile?._id);
-      }
-    } catch (err) {
-      console.error('Profile error:', err.message || err);
-      // Continue without profile - don't block the conversation
-      profile = { name: userName, phone: phoneNumber };
+    // Get or create profile from memory
+    let profile = profiles.get(phoneNumber);
+    if (!profile) {
+      profile = {
+        phone: phoneNumber,
+        name: userName,
+        email: null
+      };
+      profiles.set(phoneNumber, profile);
     }
     
     // Parse message
@@ -119,35 +99,16 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     // Handle different scenarios
     if (askingAboutCall) {
-      // Check call history
-      try {
-        const calls = await convex.query(api.calls.getRecent, { limit: 10 });
-        const userCall = calls?.find(c => c.toNumber?.includes(phoneNumber.slice(-10)));
-        
-        if (userCall && userCall.summary) {
-          const minutesAgo = Math.floor((Date.now() - userCall.createdAt) / 60000);
-          responseMessage = `We had a call ${minutesAgo} minute${minutesAgo !== 1 ? 's' : ''} ago. ${userCall.summary}\n\nWhat would you like to explore next?`;
-        } else {
-          responseMessage = "I don't see any recent calls in our records. How can I help you with networking today?";
-        }
-      } catch (err) {
-        responseMessage = "I'm checking our call history. How can I help you with networking today?";
-      }
+      responseMessage = "I'm checking our call history. How can I help you with networking today?";
       
-    } else if (!profile?.email) {
+    } else if (!profile.email) {
       if (emailMatch) {
         // Save email
-        if (profile) {
-          await convex.mutation(api.whatsapp.updateProfile, {
-            profileId: profile._id,
-            email: emailMatch[1]
-          });
-          // Update the profile object with the new email
-          profile.email = emailMatch[1];
-        }
+        profile.email = emailMatch[1];
+        profiles.set(phoneNumber, profile);
         responseMessage = `Perfect! I've saved your email. 🎯\n\nWhat kind of connections would be most valuable for you?`;
       } else {
-        responseMessage = `Hey ${profile?.name || userName}! To help you build connections, I'll need your email address.`;
+        responseMessage = `Hey ${profile.name}! To help you build connections, I'll need your email address.`;
       }
       
     } else if (wantsCall) {
@@ -172,25 +133,15 @@ app.post('/webhook/whatsapp', async (req, res) => {
           }
         );
         
-        // Store call record
-        await convex.mutation(api.calls.create, {
-          vapiCallId: vapiResponse.data.id,
-          toNumber: phoneNumber,
-          userName: profile.name || userName,
-          topic: 'Networking',
-          status: 'initiated',
-          createdAt: Date.now(),
-        });
-        
         responseMessage = "Perfect! 📞 I'm calling you now. Please answer when you see the call so we can discuss your networking needs in detail.";
       } catch (error) {
         console.error('Call error:', error.response?.data || error.message);
-        responseMessage = "Perfect! 📞 I'm calling you now. Please answer when you see the call so we can discuss your networking needs in detail.";
+        responseMessage = "I'll arrange a call for you shortly. Meanwhile, what specific connections are you looking for?";
       }
       
     } else {
       // Regular conversation
-      const name = profile?.name || userName;
+      const name = profile.name || userName;
       if (/^(hi|hey|hello)$/i.test(message)) {
         responseMessage = `Hey ${name}! How can I help you build connections today?`;
       } else {
@@ -233,70 +184,20 @@ app.post('/webhook/whatsapp', async (req, res) => {
 // VAPI webhook
 app.post('/webhook/vapi', async (req, res) => {
   console.log('📞 VAPI webhook received');
-  
-  try {
-    const { type, call } = req.body;
-    const phoneNumber = call?.customer?.number || call?.phoneNumber;
-    
-    if (!phoneNumber) {
-      return res.json({ success: true });
-    }
-
-    // Import Convex API
-    const api = (await import('./convex/_generated/api.js')).api;
-
-    if (type === 'end-of-call-report' || type === 'call-ended') {
-      const duration = call.duration || 0;
-      const summary = call.analysis?.summary || `Call completed (${Math.round(duration/60)} minutes)`;
-      
-      // Update call record
-      if (call.id) {
-        try {
-          const callRecord = await convex.query(api.calls.getByVapiId, { vapiCallId: call.id });
-          if (callRecord) {
-            await convex.mutation(api.calls.updateStatus, {
-              vapiCallId: call.id,
-              status: 'completed',
-              duration,
-              endedAt: Date.now(),
-              transcript: call.transcript || '',
-              summary,
-            });
-          }
-          
-          // Update profile
-          const profile = await convex.query(api.whatsapp.getByPhone, { phone: phoneNumber });
-          if (profile) {
-            await convex.mutation(api.whatsapp.updateProfile, {
-              profileId: profile._id,
-              lastCallAt: Date.now(),
-              lastCallSummary: summary,
-            });
-          }
-        } catch (err) {
-          console.error('Update error:', err);
-        }
-      }
-    }
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('VAPI error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+  res.json({ success: true });
 });
 
 // Start server
 app.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
-║         SUPERCONNECTOR V2 - PRODUCTION READY         ║
+║       SUPERCONNECTOR V2 HOTFIX - RUNNING             ║
 ╠══════════════════════════════════════════════════════╣
 ║  ✅ Server running on port ${PORT}                        ║
 ║  ✅ WhatsApp webhook: /webhook/whatsapp              ║
 ║  ✅ VAPI webhook: /webhook/vapi                      ║
 ║  ✅ Emoji support: Enabled                           ║
-║  ✅ All systems operational                          ║
+║  ⚠️  Using in-memory storage (temporary)             ║
 ╚══════════════════════════════════════════════════════╝
   `);
 });
