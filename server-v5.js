@@ -196,6 +196,17 @@ app.post('/webhook/whatsapp', async (req, res) => {
     
     // Handle different scenarios
     if (askingAboutCall && profile.id) {
+      // Reload profile to get latest call summary
+      const { data: updatedProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profile.id)
+        .single();
+      
+      if (updatedProfile) {
+        profile = updatedProfile;
+      }
+      
       // Check call history
       const { data: recentCalls } = await supabase
         .from('calls')
