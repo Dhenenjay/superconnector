@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eli - Your AI Superconnector</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #3b82f6;
+            --secondary: #10b981;
+            --background: #0a0e27;
+            --surface: #151a3a;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --accent: #8b5cf6;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #2563eb 0%, #8b5cf6 100%);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            overflow-x: hidden;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* Animated background */
+        .bg-animation {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            opacity: 0.5;
+            background: radial-gradient(circle at 20% 50%, rgba(37, 99, 235, 0.3) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.2) 0%, transparent 50%),
+                        radial-gradient(circle at 40% 20%, rgba(16, 185, 129, 0.2) 0%, transparent 50%);
+            animation: bgShift 20s ease-in-out infinite;
+        }
+
+        @keyframes bgShift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(-20px, -20px) rotate(1deg); }
+            66% { transform: translate(20px, -10px) rotate(-1deg); }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+
+        .particle:nth-child(1) {
+            width: 40px;
+            height: 40px;
+            left: 10%;
+            background: var(--primary);
+            border-radius: 50%;
+            animation-delay: 0s;
+            filter: blur(3px);
+        }
+
+        .particle:nth-child(2) {
+            width: 60px;
+            height: 60px;
+            left: 70%;
+            background: var(--accent);
+            border-radius: 50%;
+            animation-delay: 5s;
+            filter: blur(5px);
+        }
+
+        .particle:nth-child(3) {
+            width: 30px;
+            height: 30px;
+            left: 40%;
+            background: var(--secondary);
+            border-radius: 50%;
+            animation-delay: 10s;
+            filter: blur(2px);
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.3;
+            }
+            90% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-100vh) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            padding: 4rem 0;
+            position: relative;
+            z-index: 10;
+        }
+
+        .logo-container {
+            display: inline-block;
+            position: relative;
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            font-size: 4rem;
+            font-weight: 900;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -2px;
+            position: relative;
+            animation: glow 3s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 20px rgba(139, 92, 246, 0.5)); }
+            50% { filter: brightness(1.2) drop-shadow(0 0 40px rgba(139, 92, 246, 0.8)); }
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            font-weight: 300;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 3rem;
+            line-height: 1.6;
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 2rem 0 4rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .hero-card {
+            background: linear-gradient(135deg, var(--surface) 0%, rgba(21, 26, 58, 0.8) 100%);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 800px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(139, 92, 246, 0.1), transparent);
+            animation: shimmer 3s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .stat:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* CTA Buttons */
+        .cta-container {
+            display: flex;
+            gap: 1.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 3rem 0;
+        }
+
+        .cta-button {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-primary {
+            background: var(--gradient-2);
+            color: white;
+            box-shadow: 0 10px 30px rgba(37, 99, 235, 0.3);
+        }
+
+        .cta-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(37, 99, 235, 0.5);
+        }
+
+        .cta-secondary {
+            background: transparent;
+            color: var(--text-primary);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+
+        .cta-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+            transform: translateY(-3px);
+        }
+
+        .pulse {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+            70% { box-shadow: 0 0 0 20px rgba(37, 99, 235, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+        }
+
+        /* Features Grid */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin: 4rem 0;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 2rem;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-2);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .feature-description {
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* Logo Banner */
+        .logo-banner-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, var(--background) 0%, rgba(10, 14, 39, 0.9) 50%, rgba(10, 14, 39, 0.7) 100%);
+            padding: 2rem 0;
+            z-index: 100;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo-banner-header {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .logo-banner {
+            overflow: hidden;
+            position: relative;
+            height: 60px;
+        }
+
+        .logo-track {
+            display: flex;
+            animation: scroll 30s linear infinite;
+            width: fit-content;
+        }
+
+        @keyframes scroll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .partner-logo {
+            height: 40px;
+            margin: 0 3rem;
+            opacity: 0.7;
+            filter: grayscale(100%) brightness(1.5);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .partner-logo:hover {
+            opacity: 1;
+            filter: grayscale(0%) brightness(1.2);
+            transform: scale(1.1);
+        }
+
+        .partner-logo img {
+            height: 100%;
+            width: auto;
+        }
+
+        /* WhatsApp Floating Button */
+        .whatsapp-float {
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: #25d366;
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+            box-shadow: 0 10px 30px rgba(37, 211, 102, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            z-index: 1000;
+            animation: bounce 2s infinite;
+        }
+
+        .whatsapp-float:hover {
+            transform: scale(1.1);
+            box-shadow: 0 15px 40px rgba(37, 211, 102, 0.5);
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 3rem;
+            }
+            
+            .tagline {
+                font-size: 1.2rem;
+            }
+            
+            .hero-card {
+                padding: 2rem;
+            }
+            
+            .stat-number {
+                font-size: 2rem;
+            }
+            
+            .cta-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .cta-button {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+
+        /* Loading animation */
+        .loader {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--surface);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            z-index: 9999;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
+        /* Interactive hover effects */
+        .interactive {
+            position: relative;
+            display: inline-block;
+        }
+
+        .interactive::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-2);
+            transition: width 0.3s ease;
+        }
+
+        .interactive:hover::after {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="bg-animation"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+
+    <!-- Loading Spinner -->
+    <div class="loader" id="loader"></div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo-container">
+                <h1 class="logo">ELI</h1>
+            </div>
+            <p class="tagline">Your AI Superconnector</p>
+            <p class="subtitle">
+                Leveraging a network of 50,000+ founders, VCs, and executives to create 
+                warm introductions that actually convert. Let's accelerate your growth together.
+            </p>
+        </header>
+
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="hero-card">
+                <h2 style="font-size: 2.5rem; margin-bottom: 1rem; font-weight: 700;">
+                    The Right Introduction Can Change Everything
+                </h2>
+                <p style="font-size: 1.2rem; color: var(--text-secondary); margin-bottom: 2rem;">
+                    I'm not just another AI assistant. I'm your strategic partner in building 
+                    meaningful professional relationships that drive real business outcomes.
+                </p>
+
+                <!-- Stats -->
+                <div class="stats-container">
+                    <div class="stat">
+                        <span class="stat-number" data-target="50000">50K+</span>
+                        <span class="stat-label">Network Size</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-target="120000">120K+</span>
+                        <span class="stat-label">Intros Made</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-target="25">$25M+</span>
+                        <span class="stat-label">Deals Closed</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-number" data-target="85">85%</span>
+                        <span class="stat-label">Success Rate</span>
+                    </div>
+                </div>
+
+                <!-- CTA Buttons -->
+                <div class="cta-container">
+                    <a href="#" class="cta-button cta-primary pulse" onclick="startWhatsAppChat()">
+                        <span>💬</span> Start on WhatsApp
+                    </a>
+                    <a href="#" class="cta-button cta-secondary" onclick="scheduleCall()">
+                        <span>📞</span> Schedule a Call
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="features">
+            <div class="feature-card">
+                <span class="feature-icon">🎯</span>
+                <h3 class="feature-title">Targeted Connections</h3>
+                <p class="feature-description">
+                    I don't just connect randomly. Every introduction is strategic, 
+                    tailored to your specific goals and requirements.
+                </p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🚀</span>
+                <h3 class="feature-title">Fast Results</h3>
+                <p class="feature-description">
+                    Most connections happen within 48 hours. No more waiting weeks 
+                    for that crucial introduction.
+                </p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🤝</span>
+                <h3 class="feature-title">Warm Intros Only</h3>
+                <p class="feature-description">
+                    Every introduction comes with context and a personal touch, 
+                    dramatically increasing your success rate.
+                </p>
+            </div>
+            <div class="feature-card">
+                <span class="feature-icon">🔒</span>
+                <h3 class="feature-title">Completely Confidential</h3>
+                <p class="feature-description">
+                    Your information is secure and only shared with your explicit 
+                    permission for specific introductions.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <!-- Logo Banner -->
+    <div class="logo-banner-container">
+        <p class="logo-banner-header">Trusted by Leaders From</p>
+        <div class="logo-banner">
+            <div class="logo-track">
+                <!-- First set of logos -->
+                <span class="partner-logo">Y Combinator</span>
+                <span class="partner-logo">Character.VC</span>
+                <span class="partner-logo">ISRO</span>
+                <span class="partner-logo">IIM Ahmedabad</span>
+                <span class="partner-logo">IIM Bangalore</span>
+                <span class="partner-logo">Palantir</span>
+                <span class="partner-logo">Apple</span>
+                <span class="partner-logo">Google</span>
+                <span class="partner-logo">IIM Indore</span>
+                <span class="partner-logo">ISB</span>
+                <span class="partner-logo">Harvard Business School</span>
+                <span class="partner-logo">Stanford</span>
+                <span class="partner-logo">UC Berkeley</span>
+                <!-- Duplicate set for seamless scrolling -->
+                <span class="partner-logo">Y Combinator</span>
+                <span class="partner-logo">Character.VC</span>
+                <span class="partner-logo">ISRO</span>
+                <span class="partner-logo">IIM Ahmedabad</span>
+                <span class="partner-logo">IIM Bangalore</span>
+                <span class="partner-logo">Palantir</span>
+                <span class="partner-logo">Apple</span>
+                <span class="partner-logo">Google</span>
+                <span class="partner-logo">IIM Indore</span>
+                <span class="partner-logo">ISB</span>
+                <span class="partner-logo">Harvard Business School</span>
+                <span class="partner-logo">Stanford</span>
+                <span class="partner-logo">UC Berkeley</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- WhatsApp Floating Button -->
+    <div class="whatsapp-float" onclick="startWhatsAppChat()">
+        <span>💬</span>
+    </div>
+
+    <script>
+        // Animated number counter
+        function animateNumbers() {
+            const stats = document.querySelectorAll('.stat-number');
+            
+            stats.forEach(stat => {
+                const target = stat.textContent;
+                stat.textContent = '0';
+                
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            countUp(stat, target);
+                            observer.unobserve(stat);
+                        }
+                    });
+                });
+                
+                observer.observe(stat);
+            });
+        }
+
+        function countUp(element, target) {
+            const text = target;
+            const number = parseInt(text.replace(/[^0-9]/g, ''));
+            const suffix = text.replace(/[0-9]/g, '');
+            const duration = 2000;
+            const increment = number / (duration / 16);
+            let current = 0;
+            
+            const timer = setInterval(() => {
+                current += increment;
+                if (current >= number) {
+                    current = number;
+                    clearInterval(timer);
+                }
+                element.textContent = Math.floor(current).toLocaleString() + suffix;
+            }, 16);
+        }
+
+        // WhatsApp integration
+        function startWhatsAppChat() {
+            // Replace with your actual WhatsApp number
+            const phoneNumber = '918881888818';
+            const message = encodeURIComponent("Hi Eli! I'm looking to expand my professional network. Can you help me connect with the right people?");
+            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+        }
+
+        // Schedule call function
+        function scheduleCall() {
+            const phoneNumber = '918881888818';
+            const message = encodeURIComponent("Hi Eli! I'd like to schedule a call to discuss my networking goals. Please call me when available.");
+            window.open(`https://wa.me/${phoneNumber}?text=${message}`, '_blank');
+        }
+
+        // Add interactive effects
+        document.addEventListener('DOMContentLoaded', () => {
+            animateNumbers();
+            
+            // Add ripple effect to buttons
+            const buttons = document.querySelectorAll('.cta-button');
+            buttons.forEach(button => {
+                button.addEventListener('click', function(e) {
+                    const ripple = document.createElement('span');
+                    ripple.classList.add('ripple');
+                    this.appendChild(ripple);
+                    
+                    const x = e.clientX - e.target.offsetLeft;
+                    const y = e.clientY - e.target.offsetTop;
+                    
+                    ripple.style.left = `${x}px`;
+                    ripple.style.top = `${y}px`;
+                    
+                    setTimeout(() => {
+                        ripple.remove();
+                    }, 600);
+                });
+            });
+
+            // Parallax effect on scroll
+            window.addEventListener('scroll', () => {
+                const scrolled = window.pageYOffset;
+                const parallax = document.querySelector('.bg-animation');
+                parallax.style.transform = `translateY(${scrolled * 0.5}px)`;
+            });
+
+            // Dynamic greeting based on time
+            const hour = new Date().getHours();
+            let greeting = 'Good Evening';
+            if (hour < 12) greeting = 'Good Morning';
+            else if (hour < 18) greeting = 'Good Afternoon';
+            
+            console.log(`${greeting}! Welcome to Eli - Your AI Superconnector`);
+        });
+
+        // Add ripple effect styles
+        const style = document.createElement('style');
+        style.textContent = `
+            .ripple {
+                position: absolute;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.5);
+                transform: scale(0);
+                animation: ripple-animation 0.6s ease-out;
+                pointer-events: none;
+            }
+            
+            @keyframes ripple-animation {
+                to {
+                    transform: scale(4);
+                    opacity: 0;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
