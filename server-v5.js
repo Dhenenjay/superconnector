@@ -215,6 +215,31 @@ app.post('/webhook/whatsapp', async (req, res) => {
         .order('created_at', { ascending: false })
         .limit(1);
       
+      // Also check for recent WhatsApp conversation history
+      const { data: recentMessages } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      
+      let hasConversationHistory = false;
+      let conversationSummary = '';
+      
+      // Build a summary from recent WhatsApp messages
+      if (recentMessages && recentMessages.length > 2) {
+        hasConversationHistory = true;
+        const userMessages = recentMessages
+          .filter(msg => msg.direction === 'inbound')
+          .slice(0, 3)
+          .reverse();
+        
+        if (userMessages.length > 0) {
+          const topics = userMessages.map(msg => msg.content).join(', ');
+          conversationSummary = `Based on our WhatsApp conversation, we discussed: ${topics.substring(0, 150)}...`;
+        }
+      }
+      
       if (recentCalls && recentCalls.length > 0) {
         const lastCall = recentCalls[0];
         const minutesAgo = Math.floor((Date.now() - new Date(lastCall.created_at).getTime()) / 60000);
@@ -225,10 +250,12 @@ app.post('/webhook/whatsapp', async (req, res) => {
         responseMessage = lastCall.summary 
           ? `Yes! We spoke ${timeText}. ${lastCall.summary}\n\nWhat would you like to explore next? 🚀`
           : `We had a call ${timeText}. How can I help you build on that conversation?`;
+      } else if (hasConversationHistory) {
+        responseMessage = `${conversationSummary}\n\nHow can I help you continue from where we left off? 🚀`;
       } else if (profile.last_call_summary) {
         responseMessage = `From our last conversation: ${profile.last_call_summary}\n\nHow can I help you today?`;
       } else {
-        responseMessage = "I don't see any recent calls in our records. Would you like to schedule one? Just say 'call me' 📞";
+        responseMessage = "I'm checking our conversation history... It looks like we're just getting started! How can I help you with your networking goals? Feel free to say 'call me' if you'd prefer to talk 📞";
       }
       
     } else if (!profile.email && !emailMatch) {
@@ -311,18 +338,33 @@ app.post('/webhook/whatsapp', async (req, res) => {
     } else {
       // Regular conversation - use AI with context
       try {
-        // Build context from history
+        // Build context from history - include more messages for better context
         const contextMessages = conversationHistory
-          .slice(0, 5)
+          .slice(0, 10)  // Increased from 5 to 10 for more context
           .reverse()
           .map(msg => ({
             role: msg.direction === 'inbound' ? 'user' : 'assistant',
             content: msg.content
           }));
         
+        // Build conversation summary for system prompt
+        let recentTopics = '';
+        if (conversationHistory.length > 0) {
+          const lastUserMessages = conversationHistory
+            .filter(msg => msg.direction === 'inbound')
+            .slice(0, 3)
+            .map(msg => msg.content);
+          if (lastUserMessages.length > 0) {
+            recentTopics = `\nRecent topics they mentioned: ${lastUserMessages.join('; ').substring(0, 200)}`;
+          }
+        }
+        
         const systemPrompt = `You are Eli, an AI Superconnector specializing in warm introductions, helping ${profile.name || userName} expand their professional network through strategic connections.
         ${profile.email ? `Their email is ${profile.email}.` : 'They haven\'t shared their email yet.'}
         ${profile.last_call_summary ? `Previous call summary: ${profile.last_call_summary}` : ''}
+        ${recentTopics}
+        
+        IMPORTANT: Always acknowledge and build upon previous conversations. Reference specific details they've shared before when relevant
         
         Your mission is to gather COMPREHENSIVE information about users to enable powerful warm introductions. You MUST collect:
         
